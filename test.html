@@ -1,0 +1,226 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>天气查询</title>
+    <link rel="stylesheet" href="https://a.amap.com/jsapi_demos/static/demo-center/css/demo-center.css" />
+    <link rel="stylesheet" href="https://cache.amap.com/lbs/static/main1119.css"/>
+    <link rel="stylesheet" href="https://cache.amap.com/lbs/static/AMap.PlaceSearchRender1120.css"/>
+    <style type="text/css">
+        html,body,#container{
+            height:100%;
+            width:100%;
+        }
+        .weather{
+            width:5rem;
+            display:inline-block;
+            padding-left:0.5rem;
+        }
+        .btn{
+            width:25rem;
+            position:absolute;
+            right:100px;
+            top:15px;
+        }
+        .sharp{
+            height: 1rem;
+            width: 1rem;
+            background-color: white;
+            transform: rotateZ(45deg);
+            box-shadow: 2px 2px 3px rgba(114, 124, 245, .5);
+            position: inherit;
+            margin-left: 10.5rem;
+            margin-top: -6px;
+        }
+        .info{
+            width:25rem;
+            position:absolute;
+            left:100px;
+            top:15px;
+        }
+        .sad{
+            width:26rem;
+            position:absolute;
+            right:20px;
+            top:20px;
+            background-color: rgba(255, 255, 255, 0.99);
+            border: 50px#0a0e14;
+            box-shadow:0px 0px 10px 5px #aaa;
+        }
+    </style>
+    <script language="javascript" src="//webapi.amap.com/maps?v=2.0&key=6f8080901bb99109c5b56f60a4cd2bed&plugin=AMap.ControlBar,AMap.ToolBar"></script>
+    <script src="https://a.amap.com/jsapi_demos/static/demo-center/js/demoutils.js"></script>
+    <script type="text/javascript" src="https://webapi.amap.com/maps?v=1.4.15&key=6f8080901bb99109c5b56f60a4cd2bed&plugin=AMap.Geocoder"></script>
+    <script type="text/javascript" src="https://cache.amap.com/lbs/static/PlaceSearchRender.js"></script>
+    <script type="text/javascript" src="https://cache.amap.com/lbs/static/addToolbar.js"></script>
+    <script src="Build/Cesium/Cesium.js"></script>
+    <style>
+        @import url(Build/Cesium/Widgets/widgets.css);
+        html,
+        body,
+        #cesiumContainer {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+//以上引入的是天气查询API所需JS文件和css样式文件
+
+
+
+<body>
+
+
+<div id="container"></div>  //地图放在这个div里
+<div class="sad">
+    <h4>预报天气</h4><hr>
+    <p id='forecast'></p><hr>
+</div>
+<div class="input-card" style='width:28rem;'>  //输入具体城市名称
+    <input type="text" id="city_name">
+    <input type="button" name="gan" onclick="f()" value="查询">
+</div>
+<div class="info">
+    <h4 id="status"></h4><hr>
+    <p id="result"></p><hr>
+</div>
+
+
+
+<script type="text/javascript">
+     var map = new AMap.Map("container", {  //new新的对象，加载新地图到名为container的div中，也就是上几行注释所言
+        rotateEnable: true,
+        pitchEnable: true,
+        zoom: 13,
+        pitch: 50,
+        rotation: -15,
+        viewMode: '3D', //开启3D视图,默认为关闭
+        zooms: [2, 20],
+        resizeEnable: true
+    });
+
+
+
+     AMap.plugin('AMap.Geolocation', function() {
+         var geolocation = new AMap.Geolocation({
+             enableHighAccuracy: true,//是否使用高精度定位，默认:true
+             timeout: 10000,          //超过10秒后停止定位，默认：5s
+             position:'LB',    //定位按钮的停靠位置
+             offset: [10, 20], //定位按钮与设置的停靠位置的偏移量，默认：[10, 20]
+             //zoomToAccuracy: true,   //定位成功后是否自动调整地图视野到定位点
+             'markerOptions':{//自定义定位点样式，同Marker的Options
+                 'offset': new AMap.Pixel(-18, -36),
+                 'content':'<img src="https://a.amap.com/jsapi_demos/static/resource/img/user.png" style="width:36px;height:36px"/>'
+             },
+         });
+         map.addControl(geolocation);
+         geolocation.getCurrentPosition(function(status,result){
+             if(status=='complete'){
+                 onComplete(result)
+             }else{
+                 onError(result)
+             }
+         });
+     });
+     //解析定位结果
+     function onComplete(data) {
+         document.getElementById('status').innerHTML='定位成功'
+         var str = [];
+         str.push('定位结果：' + data.position);
+         str.push('定位类别：' + data.location_type);
+         if(data.accuracy){
+             str.push('精度：' + data.accuracy + ' 米');
+         }//如为IP精确定位结果则没有精度信息
+         str.push('是否经过偏移：' + (data.isConverted ? '是' : '否'));
+         document.getElementById('result').innerHTML = str.join('<br>');
+     }
+     //解析定位错误信息
+     function onError(data) {
+         document.getElementById('status').innerHTML='定位失败'
+         document.getElementById('result').innerHTML = '失败原因排查信息:'+data.message+'</br>浏览器返回信息：'+data.originMessage;
+     }
+
+    AMap.plugin('AMap.CitySearch', function () {  //自动索取ip地图定位，即你的网络ip是哪，地图中心就会初始化到哪
+        var citySearch = new AMap.CitySearch()
+        citySearch.getLocalCity(function (status, result) {
+            if (status === 'complete' && result.info === 'OK') {
+            }
+        })
+    })
+    function f(){         //点击事件
+        AMap.service('AMap.PlaceSearch',function(){    //没有constructor，一个是引入key 一个是要有这个的声明
+            var placeSearch = new AMap.PlaceSearch();   //用PlaceSearch获取所查询城市的信息，我们主要要从中获取经纬度，用于下面把视窗的中心定位到所查询城市
+            placeSearch.search(document.getElementById('city_name').value, function (status, result) {   //函数获取带有坐标的对象
+                // 查询成功时，result即对应匹配的信息
+                console.log(result)
+                var pois = result.poiList.pois;  //位置是以数组的形式传回来的，下面取pois[0]就是所查询城市的经纬度
+
+                AMap.plugin('AMap.Weather', function() {
+                    //创建天气查询实例
+                    var weather = new AMap.Weather();
+                    //这个对象可以查询指定城市的天气信息（前面那个PlaceSearch对象是可以查询到经纬度）
+                    weather.getLive(document.getElementById('city_name').value, function(err, data) {  //获取所查询城市
+                        //console.log(err, data); 可在console面板查看API传回对象中的信息
+                        AMap.plugin('AMap.Weather', function() {
+                            var weather = new AMap.Weather();
+                            //查询实时天气信息, 查询的城市到行政级别的城市
+                            weather.getLive(document.getElementById('city_name').value, function(err, data) {
+                                var innerHTML;
+                                if (!err) {
+                                    var str = [];   //天气信息就保存在data对象中，要啥取啥
+                                    str.push('<h4 >实时天气' + '</h4><hr>');
+                                    str.push('<p>省份：' + data.province + '</p>');
+                                    str.push('<p>城市/区：' + data.city + '</p>');
+                                    str.push('<p>天气：' + data.weather + '</p>');
+                                    str.push('<p>温度：' + data.temperature + '℃</p>');
+                                    str.push('<p>风向：' + data.windDirection + '</p>');
+                                    str.push('<p>风力：' + data.windPower + ' 级</p>');
+                                    str.push('<p>空气湿度：' + data.humidity + '</p>');
+                                    str.push('<p>发布时间：' + data.reportTime + '</p>');
+                                    var marker = new AMap.Marker({map: map, position: pois[0].location}); //这个是标记地点的蓝色的那个符号
+                                    var infoWin = new AMap.InfoWindow({  //这个对象可以对视窗进行移动操作——根据所提供经纬度可以把视窗的中心移动到指定城市
+                                        content: '<div class="info" style="position:inherit;margin-bottom:0;">' + str.join('') + '</div><div class="sharp"></div>',
+                                        isCustom: true,
+                                        offset: new AMap.Pixel(0, -37)
+                                    });
+                                    map.setCenter(marker.getPosition());     //设置地图中心
+                                    infoWin.open(map, marker.getPosition());
+                                    marker.on('mouseover', function () {
+                                        infoWin.open(map, marker.getPosition());     //把视窗交点移动到所查询城市
+                                    });
+                                }
+                            });
+
+                            weather.getForecast(document.getElementById('city_name').value, function(err, data) {
+                                if (err) {return;}
+                                var str = [];
+                                for (var i = 0,dayWeather; i < data.forecasts.length; i++) {
+                                    dayWeather = data.forecasts[i];
+                                    str.push(dayWeather.date+' <span class="weather">'+dayWeather.dayWeather+'</span> '+ dayWeather.nightTemp + '~' + dayWeather.dayTemp + '℃');
+                                }
+                                document.getElementById('forecast').innerHTML = str.join('<br>');
+                            });
+
+
+                        });
+                    });
+
+                });
+
+            })
+        });
+
+    }
+</script>
+</body>
+</html>
